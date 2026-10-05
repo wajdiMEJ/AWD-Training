@@ -6,6 +6,7 @@ Run:  uvicorn app.main:app --reload --port 8084
 import os
 
 from fastapi import FastAPI
+from py_eureka_client import eureka_client
 
 from app.routers import notification
 
@@ -28,7 +29,21 @@ app = FastAPI(
 
 app.include_router(notification.router)
 
-# TODO (students): if you add other routers, include them here.
+@app.on_event("startup")
+async def register_with_eureka() -> None:
+    await eureka_client.init_async(
+        eureka_server="http://localhost:8761/eureka/",
+        app_name="NOTIFICATION",
+        instance_port=PORT,
+        instance_host="127.0.0.1",
+        health_check_url=f"http://localhost:{PORT}/api/notifications/hello",
+        status_page_url=f"http://localhost:{PORT}/api/notifications/hello",
+    )
+
+
+@app.on_event("shutdown")
+async def unregister_from_eureka() -> None:
+    await eureka_client.stop_async()
 
 
 if __name__ == "__main__":
